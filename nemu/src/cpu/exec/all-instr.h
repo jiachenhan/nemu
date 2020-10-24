@@ -28,3 +28,5 @@
 #include "misc/misc.h"
 
 #include "special/special.h"
+
+#include "con_trans/call.h"
