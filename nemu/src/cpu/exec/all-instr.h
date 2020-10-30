@@ -37,3 +37,4 @@
 #include "con_trans/call.h"
 #include "con_trans/je.h"
 #include "con_trans/ret.h"
+#include "con_trans/jmp.h"
