@@ -29,8 +29,8 @@ make_group(group1_v,
 
 /* 0x83 */
 make_group(group1_sx_v,
-	inv, inv, inv, inv, 
-	inv, sub_si2rm_v, inv, cmp_si2rm_v)
+	add_si2rm_v, or_si2rm_v, adc_si2rm_v, sbb_si2rm_v, 
+	and_si2rm_v, sub_si2rm_v, xor_si2rm_v, cmp_si2rm_v)
 
 /* 0xc0 */
 make_group(group2_i_b,
@@ -193,7 +193,7 @@ helper_fun _2byte_opcode_table [256] = {
 /* 0x74 */	inv, inv, inv, inv,
 /* 0x78 */	inv, inv, inv, inv, 
 /* 0x7c */	inv, inv, inv, inv, 
-/* 0x80 */	inv, inv, inv, inv,
+/* 0x80 */	inv, inv, inv, group1_sx_v,
 /* 0x84 */	je_i_v, inv, inv, inv,
 /* 0x88 */	inv, inv, inv, inv, 
 /* 0x8c */	inv, inv, inv, inv, 
