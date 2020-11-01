@@ -43,3 +43,4 @@
 #include "con_trans/ret.h"
 #include "con_trans/jmp.h"
 #include "con_trans/jbe.h"
+#include "con_trans/jne.h"
