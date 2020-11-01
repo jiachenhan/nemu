@@ -6,3 +6,4 @@
 #include "jge.h"
 #include "jl.h"
 #include "jle.h"
+#include "ja.h"
