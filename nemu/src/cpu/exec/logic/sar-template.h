@@ -15,7 +15,7 @@ static void do_execute () {
 	cpu.OF=0;
 	cpu.SF=result >> len;
     	cpu.ZF=!result;
-		result ^= result >>4;
+	result ^= result >>4;
 	result ^= result >>2;
 	result ^= result >>1;
 	cpu.PF=!(result & 1);
