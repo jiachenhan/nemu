@@ -7,3 +7,7 @@
 #include "jl.h"
 #include "jle.h"
 #include "ja.h"
+#include "js.h"
+#include "jp.h"
+#include "jnp.h"
+#include "jns.h"
