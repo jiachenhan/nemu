@@ -6,6 +6,7 @@
 #define decode_rm_internal concat3(decode_rm_, SUFFIX, _internal)
 #define decode_i concat(decode_i_, SUFFIX)
 #define decode_a concat(decode_a_, SUFFIX)
+#define decode_n concat(decode_n_, SUFFIX)
 #define decode_r2rm concat(decode_r2rm_, SUFFIX)
 
 make_helper(concat(update_,SUFFIX)){
@@ -19,13 +20,21 @@ make_helper(concat(update_,SUFFIX)){
 	return 0;
 }
 
+
+make_helper(concat(decode_n_, SUFFIX)) {
+	op_src->type = OP_TYPE_NO;
+	return 0;
+}
 /* Ib, Iv */
 make_helper(concat(decode_i_, SUFFIX)) {
 	/* eip here is pointing to the immediate */
 	op_src->type = OP_TYPE_IMM;
 	op_src->imm = instr_fetch(eip, DATA_BYTE);
 	op_src->val = op_src->imm;
-
+make_helper(concat(decode_n_, SUFFIX)) {
+	op_src->type = OP_TYPE_NO;
+	return 0;
+}
 #ifdef DEBUG
 	snprintf(op_src->str, OP_STR_SIZE, "$0x%x", op_src->imm);
 #endif
