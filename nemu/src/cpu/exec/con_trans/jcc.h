@@ -13,3 +13,5 @@
 #include "jns.h"
 #include "jo.h"
 #include "jno.h"
+#include "jb.h"
+#include "jae.h"
