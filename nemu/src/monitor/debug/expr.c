@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include <regex.h>
 
-
 enum {
 	NOTYPE = 256, EQ, NUM, NEQ, AND, OR, HNU, REG, NEG, POI, MARK
 
@@ -336,4 +335,5 @@ uint32_t expr(char *e, bool *success) {
 	/* TODO: Insert codes to evaluate the expression. */
 	return eval(0,nr_token-1);
 }
+
 
