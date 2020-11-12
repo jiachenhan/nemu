@@ -45,7 +45,7 @@ static void modify_vfprintf() {
 	 * hijack.
 	 */
 	int addr = &_vfprintf_internal;
-	mprotect((void *)((addr+0x306 - 0x64) & 0xfffff000), 4096 * 2, PROT_READ | PROT_WRITE | PROT_EXEC);
+	//mprotect((void *)((addr+0x306 - 0x64) & 0xfffff000), 4096 * 2, PROT_READ | PROT_WRITE | PROT_EXEC);
 	char *sub = (char*)(addr + 0x306 - 0xb);
 	*sub = 0x8;
 
