@@ -5,40 +5,41 @@
  */
 #include <sys/types.h>
 #include <regex.h>
-#include <stdlib.h>
 
 enum {
-	NOTYPE = 256, EQ
+	NOTYPE = 256, EQ, NUM, NEQ, AND, OR, HNU, REG, NEG, POI, MARK
 
 	/* TODO: Add more token types */
-        , NUM, NEQ, OR, AND, REG, REF, NEG
+
 };
 
 static struct rule {
 	char *regex;
 	int token_type;
+	int PRI;
 } rules[] = {
 
 	/* TODO: Add more rules.
 	 * Pay attention to the precedence level of different rules.
 	 */
 
-	{" +",	NOTYPE},				// spaces
-	{"\\+", '+'},					// plus
-	{"==", EQ},						// equal
-	{"0x[0-9a-fA-F]{1,8}", NUM},			// hex
-	{"[0-9]{1,10}", NUM},					// dec
-	{"\\$[a-z]{1,31}", REG},				// register names 
-	{"-", '-'},
-	{"\\*", '*'},
-	{"/", '/'},
-	{"%", '%'},
-	{"!=", NEQ},
-	{"&&", AND},
-	{"\\|\\|", OR},
-	{"!", '!'},
-	{"\\(", '('},
-	{"\\)", ')'} 
+	{" +",	NOTYPE,0},				// spaces
+	{"\\+", '+',4},					// plus
+	{"==", EQ,3},						// equal
+	{"\\-",'-',4},
+	{"\\*",'*',5},					//multiply
+	{"/",'/',5},					//divide
+	{"\\(",'(',7},
+	{"\\)",')',7},
+	{"\\b[0-9]+\\b",NUM,0},				//num
+	{"\\b0[xX][0-9A-Fa-f]+\\b",HNU,0},		//hex number
+	{"!=",NEQ,3},
+	{"!",'!',6},
+	{"&&",AND,2},
+	{"\\|\\|",OR,1},
+	{"\\$[a-zA-Z]+",REG,0},
+	{"\\b[a-zA-Z_0-9]+",MARK,0}  //mark
+	
 };
 
 #define NR_REGEX (sizeof(rules) / sizeof(rules[0]) )
@@ -65,10 +66,13 @@ void init_regex() {
 typedef struct token {
 	int type;
 	char str[32];
+	int PRI;
 } Token;
 
 Token tokens[32];
 int nr_token;
+
+uint32_t get_addr_from_mark(char * mark);
 
 static bool make_token(char *e) {
 	int position = 0;
@@ -93,12 +97,63 @@ static bool make_token(char *e) {
 				 */
 
 				switch(rules[i].token_type) {
-                                        case NOTYPE: break;
-                                        case NUM:
-					//default: panic("please implement me");
-                                        case REG: sprintf(tokens[nr_token].str, "%.*s", substr_len, substr_start);
-					default: tokens[nr_token].type = rules[i].token_type;
-							 nr_token ++;
+					case NOTYPE: break;
+					case '-':
+						/*if there is a '-', judge the previous element is a NUM/')' or not
+						 *if it is not a NUM/')', just add a '0' into the experiment
+						 */	
+							tokens[nr_token].PRI=4;
+							tokens[nr_token].str[0]='-';
+							tokens[nr_token].str[1]='\0';
+							if(nr_token==0||(tokens[nr_token-1].type!=NUM&&tokens[nr_token-1].type!=')'&&tokens[nr_token-1].type!=HNU&&tokens[nr_token-1].type!=REG&& tokens[i - 1].type != MARK)){
+								tokens[nr_token].type=NEG;
+								tokens[nr_token].PRI=6;
+							}
+							else tokens[nr_token].type='-';
+							nr_token++;
+							break;
+					/*    
+					case NUM:	//a NUM can't follows a ')'
+							if(nr_token!=0 && tokens[nr_token-1].type==')'){
+								printf("bad expresiion!\n");
+								return 0;
+							}
+								
+							tokens[nr_token].type = rules[i].token_type;
+							tokens[nr_token].PRI=rules[i].PRI;
+							strncpy(tokens[nr_token].str,substr_start,substr_len);
+							tokens[nr_token++].str[substr_len]='\0';
+							break;
+					*/
+					case '*':	
+							tokens[nr_token].PRI=5;
+							tokens[nr_token].str[0]='*';
+							tokens[nr_token].str[1]='\0';
+							if(nr_token==0||(tokens[nr_token-1].type!=NUM&&tokens[nr_token-1].type!=')'&&tokens[nr_token-1].type!=HNU&&tokens[nr_token-1].type!=REG&& tokens[i - 1].type != MARK)){
+								tokens[nr_token].type=POI;
+								tokens[nr_token].PRI=6;
+							}
+							else tokens[nr_token].type='*';
+							nr_token++;
+							break;
+
+					case REG:	tokens[nr_token].type = rules[i].token_type;				
+							tokens[nr_token].PRI=rules[i].PRI;
+							strncpy(tokens[nr_token].str,substr_start+1,substr_len-1);
+							tokens[nr_token++].str[substr_len-1]='\0';
+							break;
+
+					case '(':	
+							if(nr_token!=0&&tokens[nr_token-1].type==NUM){
+								printf("bad expression 2 !\n");
+								return 0;
+							}
+							// fall into default		
+					default: 
+						tokens[nr_token].type = rules[i].token_type;
+						tokens[nr_token].PRI=rules[i].PRI;
+						strncpy(tokens[nr_token].str,substr_start,substr_len);
+						tokens[nr_token++].str[substr_len]='\0';
 				}
 
 				break;
@@ -110,170 +165,175 @@ static bool make_token(char *e) {
 			return false;
 		}
 	}
+	/*for(i=0;i<nr_token;i++){
+		printf("tokens %d, %s, %d\n",tokens[i].type,tokens[i].str,tokens[i].PRI);
+	}*/
+	//printf("done1\n");
 
 	return true; 
 }
 
-/*TODO: Expression evaluation*/
-
-static int op_prec(int t) {
-	switch(t) {
-		case '!': case NEG: case REF: return 0;
-		case '*': case '/': case '%': return 1;
-		case '+': case '-': return 2;
-		case EQ: case NEQ: return 4;
-		case AND: return 8;
-		case OR: return 9;
-		default: assert(0);
-	}
-}
-
-static inline int op_prec_cmp(int t1, int t2) {
-	return op_prec(t1) - op_prec(t2);
-}
-
-static int find_dominated_op(int s, int e, bool *success) {
-	int i;
-	int bracket_level = 0;
-	int dominated_op = -1;
-	for(i = s; i <= e; i ++) {
-		switch(tokens[i].type) {
-			case REG: case NUM: break;
-
-			case '(': 
-				bracket_level ++; 
+int dominant_operator(int p, int q){
+	int i, j;
+	int op=p;
+	int min_PRI = 100;
+	for(i = p; i <= q ; i++ ){
+		if(tokens[i].type==NUM||tokens[i].type==HNU||tokens[i].type==REG|| tokens[i].type==MARK)
+		continue;
+		int N = 0;
+		int is = 1;
+		for(j=i-1;j>=p;j--){
+			if(tokens[j].type=='('&&!N){
+				is=0;
 				break;
-
-			case ')': 
-				bracket_level --; 
-				if(bracket_level < 0) {
-					*success = false;
-					return 0;
-				}
-				break;
-
-			default:
-				if(bracket_level == 0) {
-					if(dominated_op == -1 || 
-							op_prec_cmp(tokens[dominated_op].type, tokens[i].type) < 0 ||
-							(op_prec_cmp(tokens[dominated_op].type, tokens[i].type) == 0 && 
-							 tokens[i].type != '!' && tokens[i].type != '~' &&
-							 tokens[i].type != NEG && tokens[i].type != REF) ) {
-						dominated_op = i;
-					}
-				}
-				break;
+			}
+			if(tokens[j].type=='(')
+				N--;
+			if(tokens[j].type==')')
+				N++;
+		}
+		if(!is)continue;
+		if(tokens[i].PRI<=min_PRI){
+		min_PRI=tokens[i].PRI;
+		op=i;
 		}
 	}
-
-	*success = (dominated_op != -1);
-	return dominated_op;
+	/*printf("%c",tokens[op].type);
+	printf("%d\n",op);*/
+	return op;
 }
 
-uint32_t get_reg_val(const char*, bool *);
+int check_parentheses(int l, int r){
+	int i = 0 ;
+	int num = 0;
+//	printf("%d %d\n", l, r);
+	if(tokens[l].type == '(' && tokens[r].type==')'){
+		for( i = l+1 ; i <= r-1 ; i++ ){
+			if(tokens[i].type=='(')num++;
+			if(tokens[i].type==')')num--;
+			if(num<0)return -1;
+		}
+		if(!num){
+		//	printf("is\n");
+			return 1;
+		}
+	}
+	return 0;
+}
 
-static uint32_t eval(int s, int e, bool *success) {
-	if(s > e) {
-		// bad expression
-		*success = false;
+int eval(int p, int q){
+	if(tokens[p].type==')') {
+		printf("bad expression 1 !\n");
 		return 0;
 	}
-	else if(s == e) {
-		// single token
-		uint32_t val;
-		switch(tokens[s].type) {
-			case REG: val = get_reg_val(tokens[s].str + 1, success);	// +1 to skip '$'
-					  if(!*success) { return 0; }
-					  break;
-
-			case NUM: val = strtol(tokens[s].str, NULL, 0); break;
-
-			default: assert(0);
+	if(p>q) { printf("bad expression 5\n") ;return 0;}
+	if(p==q){
+		int num = 0;
+		if(tokens[p].type==NUM){
+		//	printf("a\n");
+			sscanf(tokens[p].str,"%d",&num);
+		//	printf("b\n");
+			return num;
 		}
+		//TO DO: add hex
+		if(tokens[p].type==HNU){
+			sscanf(tokens[p].str,"%x",&num);
+			return num;
+		}
+		//rigister
+		if(tokens[p].type==REG){
+			/*printf("it is a reg\n");
+			printf("%s\n",tokens[p].str);
+			printf("len = %d \n ",(int) strlen(tokens[p].str));*/
+			if(strlen(tokens[p].str)==3){
+				int i=0;
+				for( i = 0; i<8 ; i++)
+					if(!strcmp(tokens[p].str,regsl[i]))break;
+					if(i>8)
+						if(strcmp(tokens[i].str,"eip")==0)
+						num=cpu.eip;
+						else Assert(1,"no such register!\n");
+					else num=cpu.gpr[i]._32;
+			/*printf("i = %d\n", i);
+				printf("num = %d\n", num);*/
+				
+			}
+			else if(strlen(tokens[p].str)==2){
+				if(tokens[p].str[1]=='x'||tokens[p].str[1]=='p'||tokens[p].str[1]=='i'){
+					int i;
+					for( i=0 ; i<8 ; i++ )
+						if(strcmp(tokens[p].str,regsw[i])==0)break;
+					num=cpu.gpr[i]._16;
+				}
+				else if(tokens[p].str[1]=='l'||tokens[p].str[1]=='h'){
 
-		*success = true;
-		return val;
+					int i;
+					for( i=0 ; i<8 ; i++ )
+						if(strcmp(tokens[p].str,regsb[i])==0) break;
+					num = cpu.gpr[i]._8[0];
+				}
+				else Assert(1,"no such register!\n");
+			}
+			return num;
+
+		}	
+		if (tokens[p].type == MARK)
+		{
+			num = get_addr_from_mark(tokens[p].str);
+			printf("%s	", tokens[p].str); 
+			return num;
+		}
+		printf("bad expression 4!\n");
+		return 0;
 	}
-	else if(tokens[s].type == '(' && tokens[e].type == ')') {
-		return eval(s + 1, e - 1, success);
-	}
+	else if(check_parentheses(p,q)==1)return eval(p+1,q-1);
+	/*else if(check_parentheses(p,q)==-1){
+		printf("bad expresion! set result = 0 !!!\n");
+		return 0;
+	}*/
 	else {
-		int dominated_op = find_dominated_op(s, e, success);
-		if(!*success) { return 0; }
-
-		int op_type = tokens[dominated_op].type;
-		if(op_type == '!' || op_type == NEG || op_type == REF) {
-			uint32_t val = eval(dominated_op + 1, e, success);
-			if(!*success) { return 0; }
-
-			switch(op_type) {
-				case '!': return !val;
-				case NEG: return -val;
-				case REF: return swaddr_read(val, 4);
-				default: assert(0);
+		//printf("l = %d , r = %d\n", p, q);
+		int op = dominant_operator(p,q);
+	       	//printf("op = %d\n",op);
+		if(op==p||tokens[op].type==POI){
+			int value2=eval(op+1,q);
+			//printf("value2 = %d\n",value2);
+			switch(tokens[op].type){
+				case NEG:/*printf("doneNEG\n")*/;return -value2;
+				case '!':return !value2;
+				case POI:return swaddr_read(value2,4);
 			}
 		}
-
-		uint32_t val1 = eval(s, dominated_op - 1, success);
-		if(!*success) { return 0; }
-		uint32_t val2 = eval(dominated_op + 1, e, success);
-		if(!*success) { return 0; }
-
-		switch(op_type) {
-			case '+': return val1 + val2;
-			case '-': return val1 - val2;
-			case '*': return val1 * val2;
-			case '/': return val1 / val2;
-			case '%': return val1 % val2;
-			case EQ: return val1 == val2;
-			case NEQ: return val1 != val2;
-			case AND: return val1 && val2;
-			case OR: return val1 || val2;
-			default: assert(0);
+		int value1=eval(p,op-1);
+		int value2=eval(op+1,q);		
+		//printf("%d, %d\n",value1,value2);
+		switch(tokens[op].type){
+			case '+':return value1+value2;
+			case '-':return value1-value2;
+			case '*':return value1*value2;
+			case '/':return value1/value2;	
+			case EQ :return value1==value2;
+			case NEQ:return value1!=value2;
+			case OR :return value1||value2;
+			case AND:return value1&&value2;
+			default: break;
 		}
 	}
+	printf("bad expression 3 !\n");
+	return 0;
 }
-
-/* TODO: Expression evaluation end */
 
 uint32_t expr(char *e, bool *success) {
 	if(!make_token(e)) {
 		*success = false;
+		printf("error!\n");
 		return 0;
 	}
+	*success = 1;
+	//printf("done\n");
 
 	/* TODO: Insert codes to evaluate the expression. */
-       	//panic("please implement me");
-	//return 0;
-        /* Detect REF and NEG tokens */
-	int i;
-	int prev_type;
-	for(i = 0; i < nr_token; i ++) {
-		if(tokens[i].type == '-') {
-			if(i == 0) {
-				tokens[i].type = NEG;
-				continue;
-			}
-
-			prev_type = tokens[i - 1].type;
-			if( !(prev_type == ')' || prev_type == NUM || prev_type == REG) ) {
-				tokens[i].type = NEG;
-			}
-		}
-
-		else if(tokens[i].type == '*') {
-			if(i == 0) {
-				tokens[i].type = REF;
-				continue;
-			}
-
-			prev_type = tokens[i - 1].type;
-			if( !(prev_type == ')' || prev_type == NUM || prev_type == REG) ) {
-				tokens[i].type = REF;
-			}
-		}
-	}
-
-	return eval(0, nr_token - 1, success);
+	return eval(0,nr_token-1);
 }
+
 
