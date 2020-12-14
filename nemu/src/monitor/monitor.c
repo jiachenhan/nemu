@@ -9,6 +9,7 @@ extern char *exec_file;
 void load_elf_tables(int, char *[]);
 void init_regex();
 void init_wp_pool();
+void init_cache();
 void init_ddr3();
 
 FILE *log_fp = NULL;
@@ -86,7 +87,8 @@ void restart() {
 
 	/* Set the initial instruction pointer. */
 	cpu.eip = ENTRY_START;
-
+	//initialize cache
+	init_cache();
 	/* Initialize DRAM. */
 	init_ddr3();
 }
