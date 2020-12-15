@@ -85,6 +85,9 @@ uint32_t secondarycache_read(hwaddr_t addr)
 }
 uint32_t cache_read(hwaddr_t addr) 
 {
+	//16 bits addr
+	//6=log(2,64)
+	//2^7=[1024*64/64(blocks)]/2^3(groups)
 	uint32_t g = (addr>>6) & 0x7f; //group number
 	//uint32_t block = (addr >> 6)<<6;
 	int i;
