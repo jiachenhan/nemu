@@ -9,6 +9,8 @@
 #define EIGHT_WAY 8
 #define SIXTEEN_WAY 16
 
+int count=0;
+
 uint32_t dram_read(hwaddr_t, size_t);
 void dram_write(hwaddr_t, size_t, uint32_t);
 
@@ -97,6 +99,7 @@ uint32_t cache_read(hwaddr_t addr)
 		if (cache[i].tag == (addr >> 13)&& cache[i].valid)
 			{
 				v = true;
+				count+=2;
 				break;
 			}
 	}
@@ -114,6 +117,7 @@ uint32_t cache_read(hwaddr_t addr)
 		}
 		cache[i].valid = true;
 		cache[i].tag = addr >> 13;
+		count+=200;
 		memcpy (cache[i].data,cache2[j].data,BLOCK_SIZE);
 	}
 	return i;
@@ -173,6 +177,7 @@ uint32_t hwaddr_read(hwaddr_t addr, size_t len) {
 		memcpy(temp,cache[block].data + offset,len);
 	}
 	int zero = 0;
+	Log("%d",count);
 	return unalign_rw(temp + zero, 4) & (~0u >> ((4 - len) << 3)); 
 }
 
