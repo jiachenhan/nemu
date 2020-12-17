@@ -301,7 +301,7 @@ int eval(int p, int q){
 			switch(tokens[op].type){
 				case NEG:/*printf("doneNEG\n")*/;return -value2;
 				case '!':return !value2;
-				case POI:return swaddr_read(value2,4);
+				case POI:return swaddr_read(value2,4,R_DS);
 			}
 		}
 		int value1=eval(p,op-1);

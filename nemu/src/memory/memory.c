@@ -17,7 +17,12 @@ void dram_write(hwaddr_t, size_t, uint32_t);
 
 void ddr3_read(hwaddr_t,void*);
 void ddr3_write(hwaddr_t,void*,uint8_t*);
+
 CPU_state cpu;
+
+extern uint8_t sreg;
+
+lnaddr_t seg_translate(swaddr_t, size_t, uint8_t);
 
 struct Cache{
 	bool valid;
@@ -195,17 +200,42 @@ void lnaddr_write(lnaddr_t addr, size_t len, uint32_t data) {
 	hwaddr_write(addr, len, data);
 }
 
-uint32_t swaddr_read(swaddr_t addr, size_t len) {
+uint32_t swaddr_read(swaddr_t addr, size_t len,uint8_t sreg ) {
 #ifdef DEBUG
 	assert(len == 1 || len == 2 || len == 4);
 #endif
-	return lnaddr_read(addr, len);
+	lnaddr_t lnaddr = seg_translate(addr, len, sreg);
+	return lnaddr_read(lnaddr, len);
 }
 
-void swaddr_write(swaddr_t addr, size_t len, uint32_t data) {
+void swaddr_write(swaddr_t addr, size_t len, uint32_t data,uint8_t sreg) {
 #ifdef DEBUG
 	assert(len == 1 || len == 2 || len == 4);
 #endif
-	lnaddr_write(addr, len, data);
+	lnaddr_t lnaddr = seg_translate(addr, len, sreg);
+	return lnaddr_write(lnaddr, len, data);
 }
 
+void loadSregCache(uint8_t sreg) {
+	uint32_t gdt = cpu.gdtr.base_addr; // base
+	gdt += cpu.sr[sreg].index << 3; // offset
+	SegmentDestriptor sdp;
+	sdp.first = lnaddr_read(gdt, 4);
+	sdp.second = lnaddr_read(gdt+4, 4);
+	uint32_t base = (((uint32_t)sdp.base2) << 16) | sdp.base1 | (((uint32_t)sdp.base3) << 24);
+	uint32_t limit = (((uint32_t)sdp.limit2) << 16) | sdp.limit1;
+	if(sdp.g) limit<<=12;
+	cpu.sr[sreg].cache.limit = limit;
+	cpu.sr[sreg].cache.base = base;
+}
+
+lnaddr_t seg_translate(swaddr_t addr, size_t len, uint8_t sreg) {
+	if (cpu.cr0.protect_enable) // protected mode
+	{
+		Assert(addr+len < cpu.sr[sreg].cache.limit, "Segmentation Fault.");
+		return addr+cpu.sr[sreg].cache.base;
+	} else
+	{
+		return addr;
+	}
+}

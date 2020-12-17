@@ -24,6 +24,12 @@ static void welcome() {
 			exec_file);
 }
 
+static void init_cr0() {
+	cpu.cr0.protect_enable = 0;
+	cpu.cr0.paging = 0;
+}
+
+
 void init_monitor(int argc, char *argv[]) {
 	/* Perform some global initialization */
 
@@ -84,7 +90,7 @@ void restart() {
 
 	/* Read the entry code into memory. */
 	load_entry();
-
+	init_cr0();
 	/* Set the initial instruction pointer. */
 	cpu.eip = ENTRY_START;
 	//initialize cache
