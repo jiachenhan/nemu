@@ -10,7 +10,7 @@ enum { R_AL, R_CL, R_DL, R_BL, R_AH, R_CH, R_DH, R_BH };
 enum { R_ES, R_CS, R_SS, R_DS, R_FS, R_GS };
 
 /* TODO: Re-organize the `CPU_state' structure to match the register
- * encoding scheme in i386 instruction format. For example, if we
+ * encoding scheme in i386 instruction format. For example, if w
  * access cpu.gpr[3]._16, we will get the `bx' register; if we access
  * cpu.gpr[1]._8[1], we will get the 'ch' register. Hint: Use `union'.
  * For more details about the register encoding scheme, see i386 manual.
@@ -77,10 +77,29 @@ typedef struct
 	
 } SegmentDestriptor;
 
+typedef union 
+{
+	struct 
+	{
+		uint8_t p: 1;
+		uint8_t rw: 1;
+		uint8_t us: 1;
+		uint8_t pwt: 1;
+		uint8_t pcd: 1;
+		uint8_t a: 1;
+		uint8_t d: 1;
+		uint8_t ps: 1;
+		uint8_t g: 1;
+		uint8_t avail: 3;
+		uint32_t base: 20;
+	};
+	uint32_t val;
+} PageEntry;
+
 
 typedef struct {
-	union{
-        	union {
+	union {
+		union {
 			uint32_t _32;
 			uint16_t _16;
 			uint8_t _8[2];
@@ -88,17 +107,24 @@ typedef struct {
 
 	/* Do NOT change the order of the GPRs' definitions. */
 
-		struct{
-            		uint32_t eax, ecx, edx, ebx, esp, ebp, esi, edi;
+		struct { 
+			uint32_t eax;
+			uint32_t ecx;
+			uint32_t edx;
+			uint32_t ebx;
+			uint32_t esp;
+			uint32_t ebp;
+			uint32_t esi;
+			uint32_t edi;
 			swaddr_t eip;
-			union{
-				struct{
+			union {
+				struct {
 					uint32_t CF: 1;
-					uint32_t   : 1;
+					uint32_t : 1;
 					uint32_t PF: 1;
-					uint32_t   : 1;
+					uint32_t : 1;
 					uint32_t AF: 1;
-					uint32_t   : 1;
+					uint32_t : 1;
 					uint32_t ZF: 1;
 					uint32_t SF: 1;
 					uint32_t TF: 1;
@@ -107,33 +133,34 @@ typedef struct {
 					uint32_t OF: 1;
 					uint32_t IOPL: 2;
 					uint32_t NT: 1;
-					uint32_t   : 1;
+					uint32_t : 1;
 					uint32_t RF: 1;
 					uint32_t VM: 1;
-					uint32_t   : 1;
+					uint32_t : 14;
 				};
-
 				uint32_t eflags;
 			};
-        	};
+		};
 		bool INTR;
 	};
+
 	CR0 cr0;
+
 	CR3 cr3;
 
-	union {
-        	SREG sr[6];
-        	struct 
-        	{
-            		SREG es, cs, ss, ds,fs,gs;
-        	};
+	union 
+	{
+		SREG sr[6];
+		struct 
+		{
+			SREG es, cs, ss, ds, fs, gs;
+		};
 	};
 
 	GDTR gdtr;
 	swaddr_t eip;
 
 } CPU_state;
-
 
 extern CPU_state cpu;
 
@@ -149,6 +176,5 @@ static inline int check_reg_index(int index) {
 extern const char* regsl[];
 extern const char* regsw[];
 extern const char* regsb[];
-
 
 #endif

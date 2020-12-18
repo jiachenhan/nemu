@@ -1,5 +1,5 @@
 #include "cpu/exec/template-start.h"
-//#include "memory/tlb.h"
+#include "memory/tlb.h"
 
 #define instr mov
 
@@ -52,7 +52,7 @@ make_helper(mov_r2cr) {
 		print_asm("mov %%%s,%%cr0", REG_NAME(R_EAX));
 	} else if(opcode == 0xd8) {
 		cpu.cr3.val = cpu.eax;
-		//resetTLB();
+		resetTLB();
 		print_asm("mov %%%s,%%cr3", REG_NAME(R_EAX));
 	}
 	return 2;
